@@ -27,7 +27,7 @@ jobs:
 
         dnf install -y git gcc make rpm-build \
                        libpcap-devel systemd-devel \
-                       tar wget
+                       tar wget rsync
 
     - name: Fix Git Trust
       run: git config --global --add safe.directory $GITHUB_WORKSPACE
