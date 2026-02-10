@@ -1,0 +1,51 @@
+name: Build hsflowd RPM aarch64
+
+on:
+  push:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+jobs:
+  build-arm-native:
+    name: Build on Native ARM64
+
+    runs-on: ubuntu-24.04-arm
+
+    container:
+      image: rockylinux:9
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Install Dependencies
+      run: |
+        echo "Current Arch: $(uname -m)"
+        
+        dnf install -y 'dnf-command(config-manager)'
+        dnf config-manager --set-enabled crb
+
+        dnf install -y git gcc make rpm-build \
+                       libpcap-devel systemd-devel \
+                       tar wget
+
+    - name: Fix Git Trust
+      run: git config --global --add safe.directory $GITHUB_WORKSPACE
+
+    - name: Build RPM
+      run: |
+        make rpm
+
+    - name: List Artifacts
+      run: |
+        find . -name "*.rpm"
+
+    - name: Upload RPM
+      uses: actions/upload-artifact@v4
+      with:
+        name: hsflowd-rhel9-aarch64
+        # 捕获生成的 RPM 包
+        path: |
+          **/aarch64/*.rpm
+          !**/*-debuginfo*.rpm
+          !**/*-debugsource*.rpm
