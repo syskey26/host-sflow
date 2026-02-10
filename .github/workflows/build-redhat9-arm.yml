@@ -1,4 +1,4 @@
-name: Build hsflowd RPM aarch64
+name: Build hsflowd RPM (Official RHEL9 ARM Strict)
 
 on:
   push:
@@ -6,11 +6,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-arm-native:
-    name: Build on Native ARM64
-
+  build-strict:
+    name: Build Native ARM64 (Official Config)
     runs-on: ubuntu-24.04-arm
-
     container:
       image: rockylinux:9
 
@@ -18,34 +16,48 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: Install Dependencies
+    - name: Install Dependencies (Official Dockerfile)
       run: |
-        echo "Current Arch: $(uname -m)"
-        
-        dnf install -y 'dnf-command(config-manager)'
-        dnf config-manager --set-enabled crb
+        dnf -y update
 
-        dnf install -y git gcc make rpm-build \
-                       libpcap-devel systemd-devel \
-                       tar wget rsync
+        dnf -y install clang
+
+        dnf -y --enablerepo=crb install \
+              git \
+              libpcap-devel \
+              libvirt-devel \
+              libnfnetlink-devel \
+              libxml2-devel \
+              dbus-devel \
+              openssl-devel \
+              rsync \
+              rpm-build \
+              libuuid-devel \
+              make tar wget
 
     - name: Fix Git Trust
       run: git config --global --add safe.directory $GITHUB_WORKSPACE
 
-    - name: Build RPM
+    - name: Build RPM (Official Script Logic)
       run: |
-        make rpm
+        echo "Starting build with full features..."
+        
+        make rpm FEATURES="NFLOG PCAP TCP DOCKER KVM OVS DBUS SYSTEMD PSAMPLE DENT DROPMON"
 
-    - name: List Artifacts
+    - name: Rename Artifacts (Optional/Mimic Script)
       run: |
-        find . -name "*.rpm"
+        PLATFORM="el9"
+        mkdir -p packages
 
-    - name: Upload RPM
+        find . -name "hsflowd-*.rpm" -not -name "*-debug*" | while read rpm; do
+           filename=$(basename "$rpm")
+           newname="${filename/hsflowd/hsflowd-$PLATFORM}"
+           echo "Renaming $rpm -> packages/$newname"
+           cp "$rpm" "packages/$newname"
+        done
+
+    - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: hsflowd-rhel9-aarch64
-        # 捕获生成的 RPM 包
-        path: |
-          **/aarch64/*.rpm
-          !**/*-debuginfo*.rpm
-          !**/*-debugsource*.rpm
+        name: hsflowd-rhel9-arm64
+        path: packages/*.rpm
